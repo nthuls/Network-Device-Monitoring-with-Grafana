@@ -152,39 +152,6 @@ nmap -sV -F --script=http-title,ssl-cert -oA nmap_output 192.168.0.0/24 && pytho
    - Discord messages are limited to 2000 characters to comply with Discord's API limits.
 
 ---
-
-### **Usage:**
-
-1. **Command-Line Arguments**:
-   - You can provide the Nmap XML file path via command-line arguments or through the `.env` file.
-   ```bash
-   python script.py --xml_file /path/to/nmap_output.xml
-   ```
-
-2. **Sample `.env` File**:
-   ```ini
-   DB_HOST=localhost
-   DB_USER=nmap_user
-   DB_PASSWORD=mypassword
-   DB_NAME=nmap_scans
-   DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your_webhook_id
-   EMAIL_USERNAME=your_email@example.com
-   EMAIL_PASSWORD=your_email_password
-   EMAIL_HOST=smtp.example.com
-   EMAIL_PORT=587
-   EMAIL_RECIPIENT=recipient@example.com
-   SEND_DISCORD_NOTIFICATIONS=true
-   SEND_EMAIL_NOTIFICATIONS=false
-   ```
-
-3. **Database Setup**:
-   - The script will automatically create the necessary database and tables based on the information in the `.env` file.
-
-4. **Notification Configurations**:
-   - To enable or disable Discord or email notifications, set `SEND_DISCORD_NOTIFICATIONS` and `SEND_EMAIL_NOTIFICATIONS` in the `.env` file as `true` or `false`.
-
----
-
 ### **Tables Structure:**
 
 1. **`scans` Table**:
