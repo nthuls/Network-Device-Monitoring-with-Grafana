@@ -12,6 +12,43 @@ This Python script is designed to process Nmap scan results, store the data in a
 - **Change Detection:** Tracks new hosts, new ports, and state changes for existing ports.
 - **Error Handling:** Rollbacks database changes if an error occurs during insertion.
 
+### **How It Works:**
+
+1. **Parsing Nmap XML (`parse_nmap_xml`)**:
+   - Reads and parses the XML file produced by Nmap.
+   - Extracts key information, including host IPs, service details, SSL certificates, HTTP titles, and port states (open, closed, or filtered).
+
+2. **Database Setup (`create_database` and `create_tables`)**:
+   - Connects to a MySQL server using credentials from the `.env` file.
+   - Creates the necessary tables (`scans`, `hosts`, `ports`, `change_log`) if they don't already exist.
+
+3. **Data Insertion (`insert_data`)**:
+   - Inserts or updates scan, host, and port data into the MySQL database.
+   - Uses SHA-256 hashes to uniquely identify hosts and ports.
+
+4. **Change Detection (`log_change`)**:
+   - Detects changes such as new hosts or port state changes.
+   - Logs changes in the `change_log` table and triggers notifications.
+
+5. **Notifications (`send_discord_notification` and `send_email`)**:
+   - Sends change notifications to a Discord channel or an email recipient if enabled.
+   - Discord messages are limited to 2000 characters to comply with Discord's API limits.
+
+---
+### **Tables Structure:**
+
+1. **`scans` Table**:
+   - Stores metadata of each Nmap scan, including version, command line used, start time, elapsed time, total hosts, and a unique scan hash.
+
+2. **`hosts` Table**:
+   - Stores details about each host detected during the scan, including IP address, hostname, OS, and number of ports tested.
+
+3. **`ports` Table**:
+   - Stores details about open, closed, or filtered ports, including the protocol, service information, and SSL certificates.
+
+4. **`change_log` Table**:
+   - Logs changes detected in the network, such as new hosts or changes in port state.
+
 ### **Requirements:**
 ### **Prerequisites:**
 Before running the scan and script, ensure you have the following:
@@ -129,39 +166,73 @@ The scan results will be saved in three formats: `.nmap`, `.xml`, and `.gnmap` w
 nmap -sV -F --script=http-title,ssl-cert -oA nmap_output 192.168.0.0/24 && python nmap2mysql.py --xml_file nmap_output.xml
 ```
 ---
-### **How It Works:**
+  
+### **Step-by-Step Cron Job Setup**
 
-1. **Parsing Nmap XML (`parse_nmap_xml`)**:
-   - Reads and parses the XML file produced by Nmap.
-   - Extracts key information, including host IPs, service details, SSL certificates, HTTP titles, and port states (open, closed, or filtered).
+1. **Navigate to your directory**:
+   - The folder where you have the Nmap XML output and the Python script is `/home/user/nmap`.
 
-2. **Database Setup (`create_database` and `create_tables`)**:
-   - Connects to a MySQL server using credentials from the `.env` file.
-   - Creates the necessary tables (`scans`, `hosts`, `ports`, `change_log`) if they don't already exist.
+2. **Prepare the command**:
+   - Assuming that the Nmap scan and the Python script work with the following commands:
+     ```bash
+     nmap -sV -F --script=http-title,ssl-cert -oA /home/user/nmap/nmap_output 192.168.0.0/24
+     python /home/user/nmap/nmap2mysql.py --xml_file /home/user/nmap/nmap_output.xml
+     ```
 
-3. **Data Insertion (`insert_data`)**:
-   - Inserts or updates scan, host, and port data into the MySQL database.
-   - Uses SHA-256 hashes to uniquely identify hosts and ports.
+3. **Edit the Crontab**:
+   - You can edit the crontab by typing the following in your terminal:
+     ```bash
+     crontab -e
+     ```
 
-4. **Change Detection (`log_change`)**:
-   - Detects changes such as new hosts or port state changes.
-   - Logs changes in the `change_log` table and triggers notifications.
+4. **Set Up the Cron Job**:
+   - Below is an example cron job that runs the scan and script every day at midnight (you can adjust the schedule based on your needs):
+   
+     ```bash
+     0 0 * * * nmap -sV -F --script=http-title,ssl-cert -oA /home/user/nmap/nmap_output 192.168.0.0/24 && python /home/user/nmap/nmap2mysql.py --xml_file /home/user/nmap/nmap_output.xml >> /home/user/nmap/nmap_cron.log 2>&1
+     ```
 
-5. **Notifications (`send_discord_notification` and `send_email`)**:
-   - Sends change notifications to a Discord channel or an email recipient if enabled.
-   - Discord messages are limited to 2000 characters to comply with Discord's API limits.
+### **Explanation of the Cron Syntax**:
 
----
-### **Tables Structure:**
+```
+┌──────────── minute (0 - 59)
+│ ┌────────── hour (0 - 23)
+│ │ ┌──────── day of the month (1 - 31)
+│ │ │ ┌────── month (1 - 12)
+│ │ │ │ ┌──── day of the week (0 - 7) (Sunday=0 or 7)
+│ │ │ │ │
+* * * * * command to be executed
+```
 
-1. **`scans` Table**:
-   - Stores metadata of each Nmap scan, including version, command line used, start time, elapsed time, total hosts, and a unique scan hash.
+- `0 0 * * *`: Runs every day at midnight (00:00).
+- `nmap -sV -F --script=http-title,ssl-cert -oA /home/user/nmap/nmap_output 192.168.0.0/24`: This is the Nmap scan command, saving output to `/home/user/nmap/nmap_output`.
+- `&& python /home/user/nmap/nmap2mysql.py --xml_file /home/user/nmap/nmap_output.xml`: Runs the Python script immediately after the Nmap scan finishes, using the XML output as input.
+- `>> /home/user/nmap/nmap_cron.log 2>&1`: Redirects all output (including errors) to a log file located at `/home/user/nmap/nmap_cron.log` for easier debugging.
 
-2. **`hosts` Table**:
-   - Stores details about each host detected during the scan, including IP address, hostname, OS, and number of ports tested.
+### **Common Cron Schedules**:
+Here are a few more examples of different schedule frequencies:
 
-3. **`ports` Table**:
-   - Stores details about open, closed, or filtered ports, including the protocol, service information, and SSL certificates.
+- **Every hour**:
+  ```bash
+  0 * * * * nmap -sV -F --script=http-title,ssl-cert -oA /home/user/nmap/nmap_output 192.168.0.0/24 && python /home/user/nmap/nmap2mysql.py --xml_file /home/user/nmap/nmap_output.xml >> /home/user/nmap/nmap_cron.log 2>&1
+  ```
 
-4. **`change_log` Table**:
-   - Logs changes detected in the network, such as new hosts or changes in port state.
+- **Every day at 2:00 AM**:
+  ```bash
+  0 2 * * * nmap -sV -F --script=http-title,ssl-cert -oA /home/user/nmap/nmap_output 192.168.0.0/24 && python /home/user/nmap/nmap2mysql.py --xml_file /home/user/nmap/nmap_output.xml >> /home/user/nmap/nmap_cron.log 2>&1
+  ```
+
+- **Every Sunday at 3:30 AM**:
+  ```bash
+  30 3 * * 0 nmap -sV -F --script=http-title,ssl-cert -oA /home/user/nmap/nmap_output 192.168.0.0/24 && python /home/user/nmap/nmap2mysql.py --xml_file /home/user/nmap/nmap_output.xml >> /home/user/nmap/nmap_cron.log 2>&1
+  ```
+
+### **Important Notes**:
+- **Permissions**: Ensure that the user running the cron job has the necessary permissions to execute both the Nmap scan and the Python script.
+- **Logging**: The `>> /home/user/nmap/nmap_cron.log 2>&1` part redirects both standard output and errors to a log file, which can be useful for debugging.
+
+By following this setup, the Nmap scan and Python script will automatically run at your desired interval, and the results will be stored in your MySQL database.
+
+# SAMPLE DASHBOARD VIEW
+   ![image](https://github.com/user-attachments/assets/043b09fe-8020-462b-ab5c-0c64f1e4206a)
+
