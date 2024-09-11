@@ -13,6 +13,11 @@ This Python script is designed to process Nmap scan results, store the data in a
 - **Error Handling:** Rollbacks database changes if an error occurs during insertion.
 
 ### **Requirements:**
+### **Prerequisites:**
+Before running the scan and script, ensure you have the following:
+1. **Nmap** installed on your system.
+2. The Python environment is set up with the necessary dependencies (see previous sections for package installation).
+3. A properly configured `.env` file with MySQL, Discord, and email credentials.
 
 #### **Python Packages:**
 1. `mysql-connector-python`
@@ -54,9 +59,76 @@ NMAP_XML_PATH=/path/to/nmap_output.xml
 SEND_DISCORD_NOTIFICATIONS=true
 SEND_EMAIL_NOTIFICATIONS=false
 ```
+---
+
+## **How to Run the Nmap Scan and Process the Results with the Script**
+### **Command Overview:**
+
+The provided command will run an Nmap scan on the local network (`192.168.0.0/24`), check for service versions (`-sV`), perform a fast scan (`-F`), and use two specific Nmap scripts:
+- **`http-title`**: Extracts the HTTP title of the web servers.
+- **`ssl-cert`**: Retrieves SSL certificate information.
+
+The scan results will be saved in three formats: `.nmap`, `.xml`, and `.gnmap` with the `-oA` option (which outputs in all formats at once). After the scan, the Python script `nmap2mysql.py` will process the XML output and store it in the MySQL database.
+
+### **Steps to Run the Command:**
+
+1. **Run the Nmap Command**:
+   - Open a terminal and execute the following command:
+   
+   ```bash
+   nmap -sV -F --script=http-title,ssl-cert -oA nmap_output 192.168.0.0/24
+   ```
+
+   This command does the following:
+   - Scans the `192.168.0.0/24` network.
+   - Uses the `http-title` and `ssl-cert` scripts to gather extra information.
+   - Outputs the result in multiple formats (`nmap_output.xml`, `nmap_output.nmap`, `nmap_output.gnmap`).
+
+2. **Run the Python Script**:
+   - After the scan completes, run the following command to process the XML output and insert the data into the MySQL database:
+
+   ```bash
+   python nmap2mysql.py --xml_file nmap_output.xml
+   ```
+
+   Alternatively, you can configure the `.env` file to automatically detect the XML output:
+   - Set the `NMAP_XML_PATH` in your `.env` file to `nmap_output.xml`:
+     ```ini
+     NMAP_XML_PATH=nmap_output.xml
+     ```
+   - Then, simply run:
+     ```bash
+     python nmap2mysql.py
+     ```
 
 ---
 
+### **Detailed Breakdown:**
+
+- **Nmap Command**:
+   ```bash
+   nmap -sV -F --script=http-title,ssl-cert -oA nmap_output 192.168.0.0/24
+   ```
+   - **`-sV`**: Detects service versions on open ports.
+   - **`-F`**: Fast scan mode (scans fewer ports).
+   - **`--script=http-title,ssl-cert`**: Runs two Nmap scripts (`http-title` and `ssl-cert`) to gather additional information.
+   - **`-oA nmap_output`**: Saves the output in multiple formats with the base name `nmap_output` (produces `nmap_output.xml`, `nmap_output.nmap`, and `nmap_output.gnmap`).
+
+- **Python Script**:
+   ```bash
+   python nmap2mysql.py --xml_file nmap_output.xml
+   ```
+   - This command runs the script and imports the Nmap XML scan data into the MySQL database.
+   - If the path to the XML file is specified in the `.env` file, you can omit the `--xml_file` argument.
+
+---
+
+### **Example of Full Command Sequence**:
+
+```bash
+nmap -sV -F --script=http-title,ssl-cert -oA nmap_output 192.168.0.0/24 && python nmap2mysql.py --xml_file nmap_output.xml
+```
+---
 ### **How It Works:**
 
 1. **Parsing Nmap XML (`parse_nmap_xml`)**:
@@ -93,7 +165,7 @@ SEND_EMAIL_NOTIFICATIONS=false
    ```ini
    DB_HOST=localhost
    DB_USER=nmap_user
-   DB_PASSWORD=nthuli
+   DB_PASSWORD=mypassword
    DB_NAME=nmap_scans
    DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your_webhook_id
    EMAIL_USERNAME=your_email@example.com
@@ -126,11 +198,3 @@ SEND_EMAIL_NOTIFICATIONS=false
 
 4. **`change_log` Table**:
    - Logs changes detected in the network, such as new hosts or changes in port state.
-
----
-
-### **Troubleshooting:**
-
-- **Discord Webhook Failure**: Check if `DISCORD_WEBHOOK_URL` is correct and reachable. Log the response from Discord to debug.
-- **Email Sending Errors**: Ensure that your email host, port, username, and password are correctly configured in the `.env` file.
-- **Database Errors**: Ensure that the MySQL service is running and that the credentials in the `.env` file are correct. You can also try manually connecting to the database using the same credentials to debug.
