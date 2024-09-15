@@ -236,3 +236,4 @@ By following this setup, the Nmap scan and Python script will automatically run 
 # SAMPLE DASHBOARD VIEW
    ![image](https://github.com/user-attachments/assets/043b09fe-8020-462b-ab5c-0c64f1e4206a)
 
+# BASH TRANSLATION COMING SOON
